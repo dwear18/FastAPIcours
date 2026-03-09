@@ -1,1 +1,0 @@
-pp.models.products import Product
