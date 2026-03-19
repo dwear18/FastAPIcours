@@ -73,6 +73,14 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_async_db))
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Product not found or inactive")
+    stmt = await db.scalars(
+        select(CategoryModel).where(CategoryModel.id == product.category_id,
+                                    CategoryModel.is_active == True)
+    )
+    category = stmt.first()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Category not found or inactive")   
     return product
 
 
@@ -112,8 +120,8 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_async_d
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Product not found or inactive")
-    await db.execute(
-        update(ProductModel).where(ProductModel.id == product_id).values(is_active=False)
-    )
+
+    product.is_active = False
     await db.commit()
-    return {"status": "success", "message": "Product marked as inactive"}
+    await db.refresh(product)
+    return product 
