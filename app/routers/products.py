@@ -109,7 +109,7 @@ async def update_product(product_id: int, product: ProductCreate, db: AsyncSessi
     return db_product
 
 
-@router.delete("/{product_id}")
+@router.delete("/{product_id}", response_model=ProductSchema)
 async def delete_product(product_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Удаляет товар по его ID (логическое удаление).
