@@ -9,7 +9,7 @@ from app.db_depends import get_async_db
 
 router = APIRouter(
     prefix="/categories",
-    tags=["categories"],
+    tags=["categories"]
 )
 
 
