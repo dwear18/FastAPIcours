@@ -26,7 +26,10 @@ async def get_all_products(db: AsyncSession = Depends(get_async_db)):
     return products
 
 @router.post("/", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
-async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_async_db), current_user: UserModel = Depends(get_current_seller)):
+async def create_product(product: ProductCreate, 
+                         db: AsyncSession = Depends(get_async_db), 
+                         current_user: UserModel = Depends(get_current_seller)
+                         ):
     """
     Создаёт новый товар, привязанный к текущему продавцу (только для 'seller').
     """
@@ -97,8 +100,10 @@ async def update_product(product_id: int,
     db_product = stmt.first()
     if not db_product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found or inactive")
+    
     if db_product.seller_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own products")        
+    
     stmt = await db.scalars(
         select(CategoryModel).where(CategoryModel.id == product.category_id, CategoryModel.is_active == True))
     category = stmt.first()
