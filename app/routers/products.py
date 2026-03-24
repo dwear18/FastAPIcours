@@ -38,7 +38,7 @@ async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_
     if not category:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Category not found or inactive")
-    db_product = ProductModel(**product.model_dump(), seller_id=current_user)
+    db_product = ProductModel(**product.model_dump(), seller_id=current_user.id)
     db.add(db_product)
     await db.commit()
     await db.refresh(db_product)
