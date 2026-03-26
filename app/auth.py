@@ -72,15 +72,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        if email is None:
+        token_type: str = payload.get("token_type")
+        if email is None or token_type != "access":
             raise credentials_exception
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.PyJWTError:
+    except jwt.InvalidTokenError:
         raise credentials_exception
     result = await db.scalars(
         select(UserModel).where(UserModel.email == email, UserModel.is_active == True))
