@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.models.users import User as UserModel
 from app.schemas import UserCreate, User as UserSchema
 from app.db_depends import get_async_db
-from app.auth import hash_password, verify_password, create_access_token
+from app.auth import hash_password, verify_password, create_access_token, create_refresh_token
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -38,9 +38,10 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)
 
 @router.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(),
-                db: AsyncSession = Depends(get_async_db)):
+                db: AsyncSession = Depends(get_async_db),
+                ):
     """
-    Аутентифицирует пользователя и возвращает JWT с email, role и id.
+    Аутентифицирует пользователя и возвращает access_token и refresh_token.
     """
     result = await db.scalars(
         select(UserModel).where(UserModel.email == form_data.username, UserModel.is_active == True))
@@ -52,4 +53,5 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(),
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user.email, "role": user.role, "id": user.id})
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = create_refresh_token(data={"sub": user.email, "role": user.role, "id": user.id})
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
