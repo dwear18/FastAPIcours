@@ -81,3 +81,14 @@ class ReviewResponse(BaseModel):
     comment_date: datetime = Field(..., description="Дата создания отзыва")
     grade: int = Field(..., description="Оценка товара")
     is_active: bool = Field(..., description="Активность отзыва")
+
+class ProductList(BaseModel):
+    """
+    Список пагинации для товаров.
+    """
+    items: list[Product] = Field(description="Товары для текущей страницы")
+    total: int = Field(ge=0, description="Общее количество товаров")
+    page: int = Field(ge=1, description="Номер текущей страницы")
+    page_size: int = Field(ge=1, description="Количество элементов на странице")
+    
+    model_config = ConfigDict(from_attributes=True)  # Для чтения из ORM-объектов
