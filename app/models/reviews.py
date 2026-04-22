@@ -1,6 +1,5 @@
-from sqlalchemy import Integer, Boolean, Text, DateTime
+from sqlalchemy import Integer, Boolean, Text, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import ForeignKey
 
 from datetime import datetime
 
