@@ -132,22 +132,34 @@ async def get_all_products(
     }
 
 @router.post("/", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
-async def create_product(product: ProductCreate, 
-                         db: AsyncSession = Depends(get_async_db), 
-                         current_user: UserModel = Depends(get_current_seller)
-                         ):
+async def create_product(
+        product: ProductCreate = Depends(ProductCreate.as_form),
+        image: UploadFile | None = File(None),
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_seller)
+):
     """
     Создаёт новый товар, привязанный к текущему продавцу (только для 'seller').
     """
-    stmt = await db.scalars(
+
+    category_result = await db.scalars(
         select(CategoryModel).where(CategoryModel.id == product.category_id,
                                     CategoryModel.is_active == True)
     )
-    category = stmt.first()
-    if not category:
+    if not category_result.first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Category not found or inactive")
-    db_product = ProductModel(**product.model_dump(), seller_id=current_user.id)
+
+    # Сохранение изображения (если есть)
+    image_url = await save_product_image(image) if image else None
+
+    # Создание товара
+    db_product = ProductModel(
+        **product.model_dump(),
+        seller_id=current_user.id,
+        image_url=image_url,
+    )
+
     db.add(db_product)
     await db.commit()
     await db.refresh(db_product)
@@ -195,7 +207,9 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_async_db))
 
 @router.put("/{product_id}", response_model=ProductSchema)
 async def update_product(product_id: int,
-                         product: ProductCreate, db: AsyncSession = Depends(get_async_db),
+                         product: ProductCreate, 
+                         image: UploadFile | None = File(None),
+                         db: AsyncSession = Depends(get_async_db),
                          current_user: UserModel = Depends(get_current_seller)
                          ):
     """
@@ -219,26 +233,39 @@ async def update_product(product_id: int,
     await db.execute(
         update(ProductModel).where(ProductModel.id == product_id).values(**product.model_dump())
         )
+    
+    if image:
+        remove_product_image(db_product.image_url)
+        db_product.image_url = await save_product_image(image)
+    
     await db.commit()
     await db.refresh(db_product)
     return db_product
 
 @router.delete("/{product_id}", response_model=ProductSchema)
-async def delete_product(product_id: int,
-                         db: AsyncSession = Depends(get_async_db),
-                         current_user: UserModel = Depends(get_current_seller)
-                         ):
+async def delete_product(
+    product_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: UserModel = Depends(get_current_seller)
+):
     """
     Выполняет мягкое удаление товара, если он принадлежит текущему продавцу (только для 'seller').
     """
-    stmt = await db.scalars(
-        select(ProductModel).where(ProductModel.id == product_id, ProductModel.is_active == True))
-    product = stmt.first()
+    result = await db.scalars(
+        select(ProductModel).where(ProductModel.id == product_id, ProductModel.is_active == True)
+    )
+    product = result.first()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found or inactive")
     if product.seller_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own products")
-    product.is_active = False
+
+    remove_product_image(product.image_url)
+
+    await db.execute(
+        update(ProductModel).where(ProductModel.id == product_id).values(image_url=None, is_active=False)
+    )
+
     await db.commit()
     await db.refresh(product)
-    return product 
+    return product
