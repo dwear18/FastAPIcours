@@ -13,3 +13,5 @@ wheels/
 
 info.log
 *.log
+
+dump.sql
